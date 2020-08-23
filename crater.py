@@ -50,15 +50,8 @@
 # Basic modules are loaded
 import numpy as np
 import os
-import sys
 import copy
-
-# path to in-house scripts and pySALEPlot
-path_pySALEPlot = '/work/nilscp/iSALE/Dellen/lib'
-
-# path to pySALEPlot is loaded
-sys.path.append(path_pySALEPlot)
-import pySALEPlot as psp
+import pySALEPlot as psp #need to have path to lib in iSALE set up
 
 '''
 ***********************************************************************

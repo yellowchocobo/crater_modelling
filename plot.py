@@ -24,6 +24,11 @@
     
     Need to update this script. We now save the final crater dimensions for
     t/tr = 10 so it's easier to download it
+    
+    Always dependent on running the transient crater all the time....
+    Need to make things a little bit easier to run....
+    
+    I need to do something much easier from main, crater and plot.py...
 
 ******************************************************************************
 '''
@@ -717,7 +722,13 @@ def vmin_vmax(path1, mod1, fld_param, fld_factor, param):
 
 
 def field(path1, paths, norm, normpath, zoom_id, lbl, vmiin, vmaax, manualx, manualy, param = 'all'):
+    
+    
     '''
+    # should have transient true or not...
+    
+    
+    
     param = 'Den'  
     path1 = '/uio/kant/geo-ceed-u1/nilscp/Desktop/stallo_work/benchmarkFI/CPPR/UAVG/CPPR10/CDILWPO/CDILWPO_L100_dev_larger_cells/'
     paths = '/run/media/nilscp/Squall/benchmarkFI/CPPR10/data/CDILWPO_L100_dev_larger_cells/'
