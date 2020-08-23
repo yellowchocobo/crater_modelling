@@ -208,7 +208,7 @@ def posTracer(model, method, threshold):
         yy = np.swapaxes(y, 0, 1)
 
     # ellapsed time since the script has been started
-    print datetime.now() - startTime
+    print (datetime.now() - startTime)
 
     # return an array with the positions (for a 3-dot or 2-dot methods)
     # the detected tracers, when they were detected, the time between saved
@@ -302,7 +302,7 @@ def parameters(x, y, tracer_idx, model, method, dt):
         xpos = np.append(xpos, pos)
 
     # print the time ellapsed since we have started the script
-    print datetime.now() - startTime
+    print (datetime.now() - startTime)
 
     # return data
     return v, angle, xpos
@@ -391,7 +391,7 @@ def main(path, folders, paths, method, thresholdf, g):
         os.chdir(patht)
 
         # print modelname
-        print modelname
+        print (modelname)
 
         model = psp.opendatfile('jdata.dat')
         (Ve, de, Re, X, Y, Xc, Yc, timesteps, tracer_idx, n, v, angle, xpos,
@@ -507,6 +507,9 @@ def ballistic(v, angle, xpos, tracer_idx, g):
 
 def excavation(model, step, stepend, tracer_idx):
     '''
+    This does not work for for example simulations with one material! 
+    or for example if the crater is excavated in more than one material
+    
     description:
     calculate the volume, depth, and diameter of the exavated materials
     This task is done using position of tracers
