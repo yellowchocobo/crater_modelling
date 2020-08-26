@@ -23,11 +23,11 @@
     
     movingaverage: average values along a moving window 
     ixdiam: first non-empty cell along the pre-impact surface (x)
-    appvolume: apparent crater volume
-    rimvolume: crater volume up to the rim crest
-    maxappdepth: maximum apparent crater depth
-    midappdepth: apparent crater depth along the axis of symmetry
-    appdiameter: apparent crater diameter
+    apparent_volume: apparent crater volume
+    rim_volume: crater volume up to the rim crest
+    maximum_apparent_depth: maximum apparent crater depth
+    maximum_apparent_depth_y_axis: apparent crater depth along the axis of symmetry
+    apparent_diameter: apparent crater diameter
     emptycells: calculate the number of empty cells
     rimrim: calculate rim height, rim-to-rim diameter and x- and y-indexes
     craterdimensions: calculate all final crater dimensions for 1-layer targets (each step)
@@ -49,64 +49,56 @@
 
 # Basic modules are loaded
 import numpy as np
-import os
+from pathlib import Path
 import copy
 import pySALEPlot as psp #need to have path to lib in iSALE set up
 
-'''
-***********************************************************************
-'''
-
 
 def movingaverage(values, window):
-    '''
-    description:
-    average values along a moving window
+    """
+    Compute moving average
 
-    example:
-    X = np.linspace(1,100,1000)
-    avg_value_X = movingaverage(X,20) #average over 20 
+    Parameters
+    ----------
+    values : 1-D numpy array
+        array from which the moving average will be computed.
+    window : integer or float
+        window (number of values).
 
-    '''
+    Returns
+    -------
+    ma : 1-D numpy array
+        moving averaged of window <window>.
 
+    """
     weights = np.repeat(1.0, window)/window
     ma = np.convolve(values, weights, 'valid')
     return ma
-
-
-'''
-***********************************************************************
-'''
-
-
+    
+#TODO change name
 def ixdiam(step, id_mat, oridy):
-    '''
-    description:
-    return the first non-empty cell along the pre-impact surface (x)
+    """
+    Find first value along the pre-impact surface where more than 99.9% of the 
+    cell is filled with material. Note that this step is conducted after a 
+    moving window with n=20 cells has been applied (to avoid that flying ejected
+    particles to be detected as the boundary of the expanding crater).
 
-    example:
+    Parameters
+    ----------
+    step : iSALE step (obtained from using pySALEPlot.readstep)
+        iSALE step.
+    id_mat : integer
+        material id in iSALE e.g., 0="all", 1="projectile", 2="target"...).
+    oridy : 1-D numpy array of indexes
+        y-index that correponds to the pre-impact surface 
+        (e.g., oridy = np.where(model.yy == 0.)[0][0]).
 
+    Returns
+    -------
+    ix : integer
+        first x-index (cell) with material along the pre-impact surface.
+    """
 
-    # get the y-index that correponds to the pre-impact surface
-    oridy = np.where(model.yy == 0.)[0][0]
-
-    #load the model
-    model = psp.opendatfile(path + modelname + '/jdata.dat')    
-
-    #load data at the 10th saved timestep
-    den = model.readStep('Den',0) 
-
-    #copy data
-    step = copy.deepcopy(den)
-
-    #id_mat
-    id_mat = 0 #(all) other type of materials can be selected as well (1,2,..)
-
-    # return the index
-    ix = ixdiam(step,0,oridy)
-
-
-    '''
     # get the concentration of material in a cell along the pre-impact surface
     conc = step.cmc[id_mat][:, oridy]
 
@@ -122,29 +114,33 @@ def ixdiam(step, id_mat, oridy):
 
     return ix
 
+def apparent_volume(model, step, id_mat, oridy, diam, ix):
+    """
+    Calculate the apparent crater volume (from the pre-impact surface)
+    Parameters
+    ----------
+    model : model output pySALEPlot
+        model output from iSALE (after ingested in pySALEPlot).
+    step : step pySALEPlot (from psp.readStep())
+        step pySALEPlot
+    id_mat : integer
+        material id in iSALE e.g., 0="all", 1="projectile", 2="target"...).
+    oridy : 1-D numpy array of indexes
+        y-index that correponds to the pre-impact surface 
+        (e.g., oridy = np.where(model.yy == 0.)[0][0]).
+    diam : float
+        apparent crater diameter.
+    ix : integer
+        first x-index (cell) with material along the pre-impact surface.
 
-'''
-***********************************************************************
-'''
+    Returns
+    -------
+    Vtot : float
+        Apparent crater volume.
+    """
 
-
-def appvolume(model, step, time, id_mat, oridy, diam, ix):
-    '''
-    description:
-    calculate the volume of the apparent crater diameter (from the pre-impact
-    surface, Va)
-
-    inputs:
-    model: model output from psp
-    step: step loaded from psp
-    time: timestep
-    id_mat: material id (0: all, 1: projectile, 2: first layer, 3: second ...)
-    oridy: y-index pre-impact surface
-    ix: first non-empty cell along the pre-impact surface (x)
-
-    '''
     # if this is the first time step, the volume is then equal to 0
-    if time == 0:
+    if step.time == 0:
         Vtot = 0
     elif np.isnan(diam):
         Vtot = np.nan
@@ -177,35 +173,38 @@ def appvolume(model, step, time, id_mat, oridy, diam, ix):
         V = np.sum(vol)
         Vtot = V
 
-    return Vtot
+    return (Vtot)
 
+def rim_volume(model, step, id_mat, diam, ix, iy):
+    """
+    Calculate the volume of the crater diameter up to the rim crest, Vr
 
-'''
-***********************************************************************
-'''
+    Parameters
+    ----------
+    model : model output pySALEPlot
+        model output from iSALE (after ingested in pySALEPlot).
+    step : step pySALEPlot (from psp.readStep())
+        step pySALEPlot
+    id_mat : integer
+        material id in iSALE e.g., 0="all", 1="projectile", 2="target"...).
+    oridy : 1-D numpy array of indexes
+        y-index that correponds to the pre-impact surface 
+        (e.g., oridy = np.where(model.yy == 0.)[0][0]).
+    diam : float
+        apparent crater diameter.
+    ix : integer
+        first x-index (cell) with material along the pre-impact surface.
+    iy : integer
+        y-index where the rim is detected.
 
+    Returns
+    -------
+    Vtot : float
+        Rim-to-rim crater volume.
 
-def rimvolume(model, step, time, id_mat, diam, ix, iy):
-    '''
-    description:
-    calculate the volume of the crater diameter up to the rim crest, Vr
-
-    this function is similar to appvolume except that the volume is calculated
-    up to the rim, which is defined with the indexs ix and iy, from function 
-    rimrim (3rd and last outputs)
-
-    inputs:
-    model: model output from psp
-    step: step loaded from psp
-    time: timestep
-    id_mat: material id (0: all, 1: projectile, 2: first layer, 3: second ...)
-    oridy: y-index pre-impact surface
-    ix: first non-empty cell along iy (x)
-    iy: y-index where the rim is detected
-
-    '''
+    """
     # if this is the first time step, the volume is then equal to 0
-    if time == 0:
+    if step.time == 0:
         Vtot = 0
     elif ((np.isnan(diam)) or (np.isnan(ix)) or (np.isnan(iy))):
         Vtot = np.nan
@@ -240,32 +239,34 @@ def rimvolume(model, step, time, id_mat, diam, ix, iy):
 
     return Vtot
 
+def maximum_apparent_depth(model, step, id_mat, oridy, diam, ix):
+    
+    """    
+    Calculate the maximum depth from the pre-impact surface (max app. depth)
+    Parameters
+    ----------
+    model : model output pySALEPlot
+        model output from iSALE (after ingested in pySALEPlot).
+    step : step pySALEPlot (from psp.readStep())
+        step pySALEPlot
+    id_mat : integer
+        material id in iSALE e.g., 0="all", 1="projectile", 2="target"...).
+    oridy : 1-D numpy array of indexes
+        y-index that correponds to the pre-impact surface 
+        (e.g., oridy = np.where(model.yy == 0.)[0][0]).
+    diam : float
+        apparent crater diameter.
+    ix : integer
+        first x-index (cell) with material along the pre-impact surface.
+    Returns
+    -------
+    depth : TYPE
+        maximum depth from pre-impact surface.
 
-'''
-***********************************************************************
-'''
-
-
-def maxappdepth(model, step, time, id_mat, oridy, diam, ix):
-    '''
-    description:
-    calculate the maximum apparent crater depth (da)
-    from the pre-impact surface
-
-    inputs:
-    model: model output from psp
-    step: saved timestep loaded from psp
-    time: time of saved timestep
-    id_mat: material id (0: all, 1: projectile, 2: first layer, 3: second ...)
-    oridy: y-index pre-impact surface
-    ix: first non-empty cell along the pre-impact surface (x)
-
-
-    '''
-
+    """
     # if the simulation did not start (t = 0) or the apparent crater diameter
     # is not detected ix = 0, then the max app depth is equal to 0.
-    if (time == 0) or (ix == 0):
+    if (step.time == 0) or (ix == 0):
         depth = 0
     elif np.isnan(diam):
         depth = np.nan
@@ -319,26 +320,29 @@ def maxappdepth(model, step, time, id_mat, oridy, diam, ix):
     return depth
 
 
-'''
-***********************************************************************
-'''
+def maximum_apparent_depth_y_axis(model, step, id_mat, diam):
+    """
+    Calculate the apparent crater depth along the y-axis of symmetry
 
+    Parameters
+    ----------
+    model : model output pySALEPlot
+        model output from iSALE (after ingested in pySALEPlot).
+    step : step pySALEPlot (from psp.readStep())
+        step pySALEPlot
+    id_mat : integer
+        material id in iSALE e.g., 0="all", 1="projectile", 2="target"...).
+    diam : float
+        apparent crater diameter.
 
-def midappdepth(model, step, time, id_mat, diam):
-    '''
-    description:
-    calculate the maximum apparent crater depth along the axis of symmetry (da)
-    from the pre-impact surface
+    Returns
+    -------
+    depth : float
+        apparent crater depth along the y-axis of symmetry.
 
-    inputs:
-    model: model output from psp
-    step: saved timestep loaded from psp
-    time: time of saved timestep
-    id_mat: material id (0: all, 1: projectile, 2: first layer, 3: second ...)
-    '''
-
+    """
     # if first time step, then the depth is obviously equal to 0
-    if time == 0:
+    if step.time == 0:
         depth = 0
     elif np.isnan(diam):
         depth = np.nan
@@ -360,27 +364,32 @@ def midappdepth(model, step, time, id_mat, diam):
 
     return depth
 
+def apparent_diameter(model, step, oridy, ix):
+    
+    """
+    Calculate the apparent crater diameter along the pre-impact surface
 
-'''
-***********************************************************************
-'''
+    Parameters
+    ----------
+    model : model output pySALEPlot
+        model output from iSALE (after ingested in pySALEPlot).
+    step : step pySALEPlot (from psp.readStep())
+        step pySALEPlot
+    oridy : 1-D numpy array of indexes
+        y-index that correponds to the pre-impact surface 
+        (e.g., oridy = np.where(model.yy == 0.)[0][0]).
+    ix : integer
+        first x-index (cell) with material along the pre-impact surface.
 
+    Returns
+    -------
+    diam : float
+        apparent crater diameter.
+    """
 
-def appdiameter(model, step, time, oridy, ix):
-    '''
-    description:
-    calculate the apparent crater diameter along the pre-impact surface (Da)
-
-    inputs:
-    model: model output from psp
-    step: saved timestep loaded from psp
-    time: time of saved timestep
-    oridy: y-index pre-impact surface
-    ix: first non-empty cell along the pre-impact surface (x)    
-    '''
 
     # if first time step, then the diameter is obviously equal to 0
-    if time == 0:
+    if step.time == 0:
         diam = 0
     else:
         # the boundary of the crater is previously detected in function ixdiam
@@ -395,12 +404,7 @@ def appdiameter(model, step, time, oridy, ix):
         if diam > (model.xhires[1] * 2.):
             diam = np.nan  # overwrite previously calculated value
 
-    return diam
-
-
-'''
-***********************************************************************
-'''
+    return (diam)
 
 
 def emptycells(model, step, time, oridy, diam, ix):
@@ -464,7 +468,7 @@ def rimrim(model, step, time, id_mat, oridy, diam, ix):
     iif: index of rim-to-rim crater diameter (x-index)
     ijf: index of rim-to-rim crest height (y-index)
 
-    iif and ijf can be used in the function "rimvolume"
+    iif and ijf can be used in the function "rim_volume"
 
     '''
     # if time equal to 0, then all crater dimensions and indexes are equal to 0
@@ -624,25 +628,25 @@ def craterdimensions(model, mode, id_mat):
                 drim[u] = np.nan
             # otherwise we go through all the calculations
             else:
-                diam[u] = appdiameter(model, step, time[u], oridy, ix)
-                vol[u] = appvolume(model, step, time[u],
+                diam[u] = apparent_diameter(model, step, time[u], oridy, ix)
+                vol[u] = apparent_volume(model, step, time[u],
                                    id_mat, oridy, diam[u], ix)
 
                 # if mode = 0, we calculate the apparent depth in two different ways
                 if mode == 0:
-                    depth[u] = midappdepth(
+                    depth[u] = maximum_apparent_depth_y_axis(
                         model, step, time[u], id_mat, diam[u])
-                    mdepth[u] = maxappdepth(
+                    mdepth[u] = maximum_apparent_depth(
                         model, step, time[u], id_mat, oridy, diam[u], ix)
                 # if mode = 1, we calculate only the maximum apparent depth
                 elif mode == 1:
-                    mdepth[u] = maxappdepth(
+                    mdepth[u] = maximum_apparent_depth(
                         model, step, time[u], id_mat, oridy, diam[u], ix)
 
                 # last functions
                 alt[u], drim[u], ixxx, iyyy = rimrim(
                     model, step, time[u], id_mat, oridy, diam[u], ix)
-                Vrim[u] = rimvolume(model, step, time[u],
+                Vrim[u] = rim_volume(model, step, time[u],
                                     id_mat, diam[u], ixxx, iyyy)
                 ec[u], ls[u], pf[u] = emptycells(
                     model, step, time[u], oridy, diam[u], ix)
@@ -1306,8 +1310,8 @@ def morph2layers(model, t):
 
     # Calculations for the upper layer
     ix = ixdiam(step, 0, oridy)  # ix to all material
-    DAPP_UL = appdiameter(model, step, time, oridy, ix)  # Dapp to all material
-    MD_UL = maxappdepth(model, step, time, 0, oridy,
+    DAPP_UL = apparent_diameter(model, step, time, oridy, ix)  # Dapp to all material
+    MD_UL = maximum_apparent_depth(model, step, time, 0, oridy,
                         ix)  # dapp to all material
     HRIM_UL, DRIM_UL = rimrim(model, step, time, 0, oridy, ix)  # DRIM
 
@@ -1316,9 +1320,9 @@ def morph2layers(model, t):
     ix2 = ixdiam(step, 2, oridy2)  # id material 2 (only lower layer)
     ix3 = ixdiam(step, 0, oridy2)  # id material 0 (all layers)
 
-    DAPP_LL = appdiameter(model, step, time, oridy2, ix3)  # upper material
-    DAPP_LL2 = appdiameter(model, step, time, oridy2, ix2)  # upper material
-    MD_LL = maxappdepth(model, step, time, 2, oridy,
+    DAPP_LL = apparent_diameter(model, step, time, oridy2, ix3)  # upper material
+    DAPP_LL2 = apparent_diameter(model, step, time, oridy2, ix2)  # upper material
+    MD_LL = maximum_apparent_depth(model, step, time, 2, oridy,
                         ix3)  # dapp to second material
     # it gives a positive depth (but it should be negative) DRIM mat 2 (it does not manage to get the rim)
     HRIM_LL, DRIM_LL = rimrim(model, step, time, 2, oridy2, ix3)
