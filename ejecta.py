@@ -368,8 +368,8 @@ def calculate(path_jdata, path_data, method, thresholdf, g):
      tair, land) = wrap(model, method, thresholdf, g)
 
     # create plots directory if it does not exist
-    if not path_data.exists():
-        path_data.mkdir(parents=True)
+    if not paths.exists():
+        paths.mkdir(parents=True)
 
     # save data
     header_txt = "Ve;de;De"
