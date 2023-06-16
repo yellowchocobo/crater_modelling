@@ -1,38 +1,3 @@
-# -*- coding: utf-8 -*-
-
-'''
-******************************************************************************
-
-     =========================================================================
-     Subroutine to plot results
-
-
-     Description                                     Programmer    Date
-     ------------------------------------------------------------------
-     Original version (1.0).............................NCP  2017/08/XX
-     Improved version (2.0)   ..........................NCP  2017/22/11   
-    ==========================================================================
-    
-    The version 2.0 includes:
-    - a better description of functions
-    - changed the name of some function (except main and craterdimensions)
-    - functions:
-    
-    
-    
-    ==========================================================================
-    
-    Need to update this script. We now save the final crater dimensions for
-    t/tr = 10 so it's easier to download it
-    
-    Always dependent on running the transient crater all the time....
-    Need to make things a little bit easier to run....
-    
-    I need to do something much easier from main, crater and plot.py...
-
-******************************************************************************
-'''
-
 # loading of basic Python's module
 import numpy as np
 import os
@@ -44,62 +9,75 @@ from matplotlib import rc
 import matplotlib.gridspec as gridspec
 import copy
 import glob
+import re
+from PIL import Image
 
-
-pathm = ['/work/nilscp/Python/prog/clean', '/work/nilscp/iSALE/Dellen/lib']
-
-for pat in pathm:
-    sys.path.append(pat)
 
 import pySALEPlot as psp
 import crater as cr
 import subprocess
-'''
-***********************************************************************
-'''
+
 
 # Switch on the use of Latex text
 rc('text', usetex=True)
 rc('axes', linewidth=2)
 rc('font', weight='bold')
 
+#see https://github.com/matplotlib/matplotlib/issues/15010 for ideas
+
 '''
-***********************************************************************
 '''
 
+def atoi(text):
+    return int(text) if text.isdigit() else text
 
-def make_video(path, delay_number, loop_number, videolabel):
+def natural_keys(text):
     '''
-    description:
-
-    path = '/mypath/' # note the slash at the end
-    delay_number: in hundreds of a second
-    loop: = 0 infinite looping, 1 = once, 2 = twice ....
-    videoname = 'myvideo.gif'  
-
-    example:
-    path = '/run/media/nilscp/Squall/benchmarkFI/CPPR10/data/CDILWPO_L100/evolution/plots/Distension/all/'
-    delay_number = 10
-    loop_number = 1
-    videoname = 'distension'
-    make_video(path, delay_number, loop_number, videoname)
+    alist.sort(key=natural_keys) sorts in human order
+    http://nedbatchelder.com/blog/200712/human_sorting.html
+    (See Toothy's implementation in the comments)
     '''
-    os.chdir(path)
+    return [ atoi(c) for c in re.split(r'(\d+)', text) ]
 
-    videoname = videolabel + '_delay' + \
+
+def make_movie(folder, delay_number, loop_number, moviename):
+    """
+    See test_dilatancy notebook to improve this function!
+    
+    Make a gif video from a folder containing numerous png files
+
+    Parameters
+    ----------
+    folder : str
+        path to folder containing png files.
+    delay_number : int
+        in hundreds of a second.
+    loop_number : int
+        oop: = 0 infinite looping, 1 = once, 2 = twice.
+    moviename : str
+        Name of the movie (string should end with .gif).
+
+    Returns
+    -------
+    None. Create a video.
+    
+    # new way of doing it
+    x = np.array([np.array(Image.open(fname)) for fname in images])
+    writer = skvideo.io.vwrite('/home/nilscp/iSALE/Dellen/share/examples/dilatancy/Dilatancy/plots/video.mp4', videodata=x)
+
+    """
+
+    os.chdir(folder)
+
+    movie = moviename + '_delay' + \
         str(int(delay_number)) + '_loop' + str(loop_number) + '.gif'
 
-    command = ("convert -delay " + str(delay_number) + " -loop " + str(loop_number) + " " + str(path) +
-               "*.png " + videoname)
+    command = ("convert -delay " + str(delay_number) + " -loop " + str(loop_number) + " " + str(folder) +
+               "*.png " + movie)
 
-    subprocess.Popen(command.split(), cwd=path)
+    subprocess.Popen(command.split(), cwd=folder)
 
     print ('Steven Spielberg')
-
-
-'''
-***********************************************************************
-'''
 
 
 def find_nearest(array, value):

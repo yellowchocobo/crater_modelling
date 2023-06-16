@@ -48,6 +48,7 @@
 '''
 
 # Basic modules are loaded
+import os
 import numpy as np
 from pathlib import Path
 import copy
